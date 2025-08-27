@@ -17,7 +17,7 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
-        syntra: "bg-syntra-primary text-syntra-text-primary shadow-xs hover:bg-syntra-primary-dark syntra-glow",
+        syntra: "bg-syntra-primary text-syntra-text-primary shadow-xs hover:bg-syntra-primary-dark ",
         electric: "bg-syntra-electric text-syntra-black shadow-xs hover:bg-syntra-electric/90 electric-pulse",
         neon: "bg-syntra-neon text-syntra-black shadow-xs hover:bg-syntra-neon/90",
       },

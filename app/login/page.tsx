@@ -37,8 +37,14 @@ export default function LoginPage() {
     }
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const result = await response.json()
+
+      if (!response.ok) throw new Error(result.message)
 
       // For demo purposes, redirect to chat
       window.location.href = "/chat"
@@ -55,7 +61,7 @@ export default function LoginPage() {
         <Card className="bg-syntra-dark-800 border-syntra-dark-600 shadow-2xl">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <Image src="/syntra-logo.png" alt="Syntra" width={64} height={64} className="syntra-glow" />
+              <Image src="/syntra-logo.png" alt="Syntra" width={100} height={100} className="" />
             </div>
             <div>
               <CardTitle className="text-2xl font-heading font-bold text-syntra-text-primary">
