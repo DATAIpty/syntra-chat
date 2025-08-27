@@ -1,118 +1,121 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
-  /* Added Syntra color system with specific brand colors */
-  /* Syntra Brand Colors */
+  /* Light Theme (Default) */
+  --syntra-bg-primary: #ffffff;
+  --syntra-bg-secondary: #f8fafc;
+  --syntra-bg-tertiary: #f1f5f9;
+  --syntra-text-primary: #1e293b;
+  --syntra-text-secondary: #64748b;
+  --syntra-text-muted: #94a3b8;
+  --syntra-border: #e2e8f0;
+  --syntra-border-light: #f1f5f9;
+  
+  /* Brand colors (consistent across themes) */
   --syntra-primary: #0066ff;
   --syntra-primary-dark: #0052cc;
-  --syntra-black: #0d1632;
-  --syntra-dark-900: #16212d;
-  --syntra-dark-800: #1a1f2e;
-  --syntra-dark-700: #242938;
-  --syntra-dark-600: #2e3441;
   --syntra-electric: #00d4ff;
   --syntra-neon: #00ff88;
-  --syntra-text-primary: #ffffff;
-  --syntra-text-secondary: #b8bcc8;
-  --syntra-text-muted: #8b92a5;
   --syntra-danger: #ff4757;
+  --syntra-warning: #ffaa00;
+  --syntra-purple: #8b5cf6;
 
-  /* Default theme colors */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Default theme colors for shadcn/ui components */
+  --background: #ffffff;
+  --foreground: #1e293b;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+  --popover: #ffffff;
+  --popover-foreground: #1e293b;
+  --primary: #0066ff;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1e293b;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #1e293b;
+  --destructive: #ff4757;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --ring: #0066ff;
+  --radius: 0.5rem;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #1e293b;
+  --sidebar-primary: #0066ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #1e293b;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #0066ff;
 }
 
 .dark {
-  /* Updated dark theme to use Syntra colors */
-  --background: var(--syntra-black);
-  --foreground: var(--syntra-text-primary);
-  --card: var(--syntra-dark-800);
-  --card-foreground: var(--syntra-text-primary);
-  --popover: var(--syntra-dark-800);
-  --popover-foreground: var(--syntra-text-primary);
-  --primary: var(--syntra-primary);
-  --primary-foreground: var(--syntra-text-primary);
-  --secondary: var(--syntra-dark-700);
-  --secondary-foreground: var(--syntra-text-primary);
-  --muted: var(--syntra-dark-700);
-  --muted-foreground: var(--syntra-text-secondary);
-  --accent: var(--syntra-electric);
-  --accent-foreground: var(--syntra-text-primary);
-  --destructive: var(--syntra-danger);
-  --destructive-foreground: var(--syntra-text-primary);
-  --border: var(--syntra-dark-600);
-  --input: var(--syntra-dark-700);
-  --ring: var(--syntra-primary);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: var(--syntra-dark-900);
-  --sidebar-foreground: var(--syntra-text-primary);
-  --sidebar-primary: var(--syntra-primary);
-  --sidebar-primary-foreground: var(--syntra-text-primary);
-  --sidebar-accent: var(--syntra-dark-800);
-  --sidebar-accent-foreground: var(--syntra-text-primary);
-  --sidebar-border: var(--syntra-dark-700);
-  --sidebar-ring: var(--syntra-primary);
+  /* Dark Theme */
+  --syntra-bg-primary: #0d1632;
+  --syntra-bg-secondary: #16212d;
+  --syntra-bg-tertiary: #1a1f2e;
+  --syntra-text-primary: #ffffff;
+  --syntra-text-secondary: #b8bcc8;
+  --syntra-text-muted: #8b92a5;
+  --syntra-border: #2e3441;
+  --syntra-border-light: #242938;
+
+  /* Dark theme colors for shadcn/ui components */
+  --background: #0d1632;
+  --foreground: #ffffff;
+  --card: #1a1f2e;
+  --card-foreground: #ffffff;
+  --popover: #1a1f2e;
+  --popover-foreground: #ffffff;
+  --primary: #0066ff;
+  --primary-foreground: #ffffff;
+  --secondary: #242938;
+  --secondary-foreground: #ffffff;
+  --muted: #242938;
+  --muted-foreground: #b8bcc8;
+  --accent: #242938;
+  --accent-foreground: #ffffff;
+  --destructive: #ff4757;
+  --destructive-foreground: #ffffff;
+  --border: #2e3441;
+  --input: #242938;
+  --ring: #0066ff;
+  --sidebar: #16212d;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #0066ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1f2e;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2e3441;
+  --sidebar-ring: #0066ff;
 }
 
-@theme inline {
-  /* Updated font variables to use Open Sans and Montserrat */
+@theme {
+  /* Font variables */
   --font-sans: var(--font-open-sans);
   --font-heading: var(--font-montserrat);
-  --font-mono: var(--font-geist-mono);
 
-  /* Added Syntra color classes */
-  --color-syntra-primary: var(--syntra-primary);
-  --color-syntra-primary-dark: var(--syntra-primary-dark);
-  --color-syntra-black: var(--syntra-black);
-  --color-syntra-dark-900: var(--syntra-dark-900);
-  --color-syntra-dark-800: var(--syntra-dark-800);
-  --color-syntra-dark-700: var(--syntra-dark-700);
-  --color-syntra-dark-600: var(--syntra-dark-600);
-  --color-syntra-electric: var(--syntra-electric);
-  --color-syntra-neon: var(--syntra-neon);
+  /* Syntra theme-aware colors for Tailwind v4 */
+  --color-syntra-bg-primary: var(--syntra-bg-primary);
+  --color-syntra-bg-secondary: var(--syntra-bg-secondary);
+  --color-syntra-bg-tertiary: var(--syntra-bg-tertiary);
   --color-syntra-text-primary: var(--syntra-text-primary);
   --color-syntra-text-secondary: var(--syntra-text-secondary);
   --color-syntra-text-muted: var(--syntra-text-muted);
+  --color-syntra-border: var(--syntra-border);
+  --color-syntra-border-light: var(--syntra-border-light);
+  --color-syntra-primary: var(--syntra-primary);
+  --color-syntra-primary-dark: var(--syntra-primary-dark);
+  --color-syntra-electric: var(--syntra-electric);
+  --color-syntra-neon: var(--syntra-neon);
   --color-syntra-danger: var(--syntra-danger);
+  --color-syntra-warning: var(--syntra-warning);
+  --color-syntra-purple: var(--syntra-purple);
 
+  /* Standard shadcn colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -132,15 +135,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -149,12 +143,16 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Added Syntra-specific animations and effects */
+/* Syntra-specific animations */
 @keyframes syntra-glow {
-  0%,
-  100% {
+  0%, 100% {
     box-shadow: 0 0 5px var(--syntra-primary);
   }
   50% {
@@ -163,8 +161,7 @@
 }
 
 @keyframes electric-pulse {
-  0%,
-  100% {
+  0%, 100% {
     box-shadow: 0 0 5px var(--syntra-electric);
   }
   50% {
@@ -173,17 +170,12 @@
 }
 
 @keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
+/* Utility classes */
 .syntra-glow {
   animation: syntra-glow 2s ease-in-out infinite;
 }
@@ -193,7 +185,11 @@
 }
 
 .syntra-gradient {
-  background: linear-gradient(-45deg, var(--syntra-black), var(--syntra-dark-900), var(--syntra-dark-800));
+  background: linear-gradient(-45deg, 
+    var(--syntra-bg-primary), 
+    var(--syntra-bg-secondary), 
+    var(--syntra-bg-tertiary)
+  );
   background-size: 400% 400%;
   animation: gradient-shift 15s ease infinite;
 }
@@ -202,12 +198,17 @@
   * {
     @apply border-border outline-ring/50;
   }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors;
   }
 
-  /* Added heading font class */
   .font-heading {
-    font-family: var(--font-heading);
+    font-family: var(--font-montserrat);
   }
+}
+
+/* Smooth theme transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }

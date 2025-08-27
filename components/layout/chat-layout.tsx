@@ -1,9 +1,15 @@
-import type React from "react"
+"use client"
+
+import React from "react"
 
 interface ChatLayoutProps {
   children: React.ReactNode
 }
 
 export function ChatLayout({ children }: ChatLayoutProps) {
-  return <div className="h-screen overflow-hidden bg-syntra-black">{children}</div>
+  return (
+    <div className="h-screen w-full overflow-hidden bg-background text-foreground">
+      {children}
+    </div>
+  )
 }

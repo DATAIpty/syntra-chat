@@ -1,265 +1,294 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/ui/avatar"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { User, Bell, Shield, Palette, Upload } from "lucide-react"
-import type { User as UserType } from "@/types"
+import { User, Settings, Lock, Palette } from "lucide-react"
+import { User as UserType } from "@/types"
+import { useTheme } from "@/components/theme-provider"
 
 interface UserSettingsModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: UserType
-  onUpdateUser: (user: Partial<UserType>) => void
+  onUpdateUser: (updates: Partial<UserType>) => Promise<void>
 }
 
-export function UserSettingsModal({ open, onOpenChange, user, onUpdateUser }: UserSettingsModalProps) {
-  const [name, setName] = React.useState(user.name)
-  const [email, setEmail] = React.useState(user.email)
-  const [notifications, setNotifications] = React.useState(true)
-  const [soundEnabled, setSoundEnabled] = React.useState(true)
-  const [theme, setTheme] = React.useState("dark")
-  const [language, setLanguage] = React.useState("en")
+export function UserSettingsModal({
+  open,
+  onOpenChange,
+  user,
+  onUpdateUser,
+}: UserSettingsModalProps) {
+  const { theme } = useTheme()
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [profileData, setProfileData] = useState({
+    full_name: user.full_name || "",
+    email: user.email || "",
+    bio: "",
+  })
+  
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
 
-  const handleSave = () => {
-    onUpdateUser({
-      name: name.trim(),
-      email: email.trim(),
-    })
-    onOpenChange(false)
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsUpdating(true)
+    
+    try {
+      await onUpdateUser(profileData)
+    } catch (error) {
+      console.error('Failed to update profile:', error)
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
-  const handleAvatarUpload = () => {
-    // Placeholder for avatar upload functionality
-    console.log("Avatar upload clicked")
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      return // Show error toast
+    }
+    
+    setIsUpdating(true)
+    
+    try {
+      // TODO: Implement password change API call
+      console.log('Password change:', passwordData)
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
+    } catch (error) {
+      console.error('Failed to change password:', error)
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-syntra-dark-800 border-syntra-dark-600 max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="text-syntra-text-primary font-heading text-xl">User Settings</DialogTitle>
-          <DialogDescription className="text-syntra-text-secondary">
-            Manage your profile and application preferences.
+          <DialogTitle className="text-card-foreground font-heading text-xl">
+            Settings
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Manage your profile, preferences, and account settings.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-syntra-dark-700">
-            <TabsTrigger value="profile" className="data-[state=active]:bg-syntra-primary">
-              <User className="size-4 mr-2" />
+          <TabsList className="grid w-full grid-cols-3 bg-muted">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="size-4" />
               Profile
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="data-[state=active]:bg-syntra-primary">
-              <Bell className="size-4 mr-2" />
-              Notifications
+            <TabsTrigger value="preferences" className="flex items-center gap-2">
+              <Settings className="size-4" />
+              Preferences
             </TabsTrigger>
-            <TabsTrigger value="privacy" className="data-[state=active]:bg-syntra-primary">
-              <Shield className="size-4 mr-2" />
-              Privacy
-            </TabsTrigger>
-            <TabsTrigger value="appearance" className="data-[state=active]:bg-syntra-primary">
-              <Palette className="size-4 mr-2" />
-              Appearance
+            <TabsTrigger value="security" className="flex items-center gap-2">
+              <Lock className="size-4" />
+              Security
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="profile" className="space-y-6 mt-6">
-            <Card className="bg-syntra-dark-700 border-syntra-dark-600">
-              <CardHeader>
-                <CardTitle className="text-syntra-text-primary">Profile Information</CardTitle>
-                <CardDescription className="text-syntra-text-secondary">
-                  Update your personal information and avatar.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          <TabsContent value="profile" className="space-y-4 mt-6">
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-4">
                 <div className="flex items-center gap-4">
-                  <Avatar className="size-20 border-2 border-syntra-electric">
-                    <div className="size-full bg-syntra-primary rounded-full flex items-center justify-center text-2xl font-bold text-syntra-text-primary">
-                      {user.name.charAt(0).toUpperCase()}
+                  <Avatar className="size-16 border-2 border-primary/20">
+                    <div className="size-full bg-primary rounded-full flex items-center justify-center text-lg font-bold text-primary-foreground">
+                      {user.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                     </div>
                   </Avatar>
-                  <Button
-                    variant="outline"
-                    onClick={handleAvatarUpload}
-                    className="bg-syntra-dark-600 border-syntra-dark-500 hover:bg-syntra-dark-500"
-                  >
-                    <Upload className="size-4 mr-2" />
-                    Upload Avatar
-                  </Button>
+                  <div>
+                    <CardTitle className="text-card-foreground">{user.full_name}</CardTitle>
+                    <CardDescription className="text-muted-foreground">{user.email}</CardDescription>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {user.organization_id || "Syntra Enterprise"}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              </CardHeader>
+              
+              <CardContent>
+                <form onSubmit={handleProfileSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName" className="text-card-foreground font-medium">
+                        Full Name
+                      </Label>
+                      <Input
+                        id="fullName"
+                        value={profileData.full_name}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, full_name: e.target.value }))}
+                        disabled={isUpdating}
+                        className="bg-input border-border text-foreground"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-card-foreground font-medium">
+                        Email Address
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profileData.email}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                        disabled={isUpdating}
+                        className="bg-input border-border text-foreground"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-syntra-text-primary font-medium">
-                      Full Name
+                    <Label htmlFor="bio" className="text-card-foreground font-medium">
+                      Bio (Optional)
                     </Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="bg-syntra-dark-600 border-syntra-dark-500 text-syntra-text-primary"
+                    <Textarea
+                      id="bio"
+                      value={profileData.bio}
+                      onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
+                      placeholder="Tell us a bit about yourself..."
+                      rows={3}
+                      disabled={isUpdating}
+                      className="bg-input border-border text-foreground resize-none"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-syntra-text-primary font-medium">
-                      Email Address
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="bg-syntra-dark-600 border-syntra-dark-500 text-syntra-text-primary"
-                    />
+                  <div className="flex justify-end">
+                    <Button 
+                      type="submit" 
+                      disabled={isUpdating}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      {isUpdating ? "Updating..." : "Update Profile"}
+                    </Button>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-syntra-text-primary font-medium">Organization</Label>
-                  <Input
-                    value={user.organization}
-                    disabled
-                    className="bg-syntra-dark-600 border-syntra-dark-500 text-syntra-text-muted"
-                  />
-                  <p className="text-xs text-syntra-text-muted">
-                    Contact your administrator to change organization settings.
-                  </p>
-                </div>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="notifications" className="space-y-6 mt-6">
-            <Card className="bg-syntra-dark-700 border-syntra-dark-600">
+          <TabsContent value="preferences" className="space-y-4 mt-6">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-syntra-text-primary">Notification Preferences</CardTitle>
-                <CardDescription className="text-syntra-text-secondary">
-                  Choose how you want to be notified about conversations and updates.
+                <CardTitle className="text-card-foreground flex items-center gap-2">
+                  <Palette className="size-5" />
+                  Appearance
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Customize how Syntra Chat looks and feels.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-syntra-text-primary font-medium">Push Notifications</Label>
-                    <p className="text-sm text-syntra-text-muted">Receive notifications for new messages</p>
+                    <Label className="text-card-foreground font-medium">Theme</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Choose between light and dark mode
+                    </p>
                   </div>
-                  <Switch checked={notifications} onCheckedChange={setNotifications} />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-syntra-text-primary font-medium">Sound Effects</Label>
-                    <p className="text-sm text-syntra-text-muted">Play sounds for message notifications</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground capitalize">{theme}</span>
+                    <ThemeToggle />
                   </div>
-                  <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="privacy" className="space-y-6 mt-6">
-            <Card className="bg-syntra-dark-700 border-syntra-dark-600">
+          <TabsContent value="security" className="space-y-4 mt-6">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-syntra-text-primary">Privacy & Security</CardTitle>
-                <CardDescription className="text-syntra-text-secondary">
-                  Manage your privacy settings and data preferences.
+                <CardTitle className="text-card-foreground">Change Password</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Update your account password for better security.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-syntra-text-primary font-medium">Data Collection</Label>
-                      <p className="text-sm text-syntra-text-muted">Allow usage analytics to improve the service</p>
-                    </div>
-                    <Switch defaultChecked />
+              <CardContent>
+                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword" className="text-card-foreground font-medium">
+                      Current Password
+                    </Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      disabled={isUpdating}
+                      className="bg-input border-border text-foreground"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword" className="text-card-foreground font-medium">
+                      New Password
+                    </Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                      disabled={isUpdating}
+                      className="bg-input border-border text-foreground"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="text-card-foreground font-medium">
+                      Confirm New Password
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      disabled={isUpdating}
+                      className="bg-input border-border text-foreground"
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-syntra-text-primary font-medium">Conversation History</Label>
-                      <p className="text-sm text-syntra-text-muted">Save conversation history for future reference</p>
-                    </div>
-                    <Switch defaultChecked />
+                  {passwordData.newPassword && passwordData.confirmPassword && 
+                   passwordData.newPassword !== passwordData.confirmPassword && (
+                    <p className="text-sm text-destructive">Passwords do not match</p>
+                  )}
+
+                  <div className="flex justify-end pt-4">
+                    <Button 
+                      type="submit" 
+                      disabled={
+                        isUpdating || 
+                        !passwordData.currentPassword || 
+                        !passwordData.newPassword ||
+                        passwordData.newPassword !== passwordData.confirmPassword
+                      }
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      {isUpdating ? "Updating..." : "Change Password"}
+                    </Button>
                   </div>
-                </div>
-
-                <div className="pt-4 border-t border-syntra-dark-600">
-                  <Button variant="destructive" className="w-full">
-                    Delete All Conversation Data
-                  </Button>
-                  <p className="text-xs text-syntra-text-muted mt-2 text-center">
-                    This action cannot be undone. All your conversations will be permanently deleted.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="appearance" className="space-y-6 mt-6">
-            <Card className="bg-syntra-dark-700 border-syntra-dark-600">
-              <CardHeader>
-                <CardTitle className="text-syntra-text-primary">Appearance Settings</CardTitle>
-                <CardDescription className="text-syntra-text-secondary">
-                  Customize the look and feel of your chat interface.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-syntra-text-primary font-medium">Theme</Label>
-                  <Select value={theme} onValueChange={setTheme}>
-                    <SelectTrigger className="bg-syntra-dark-600 border-syntra-dark-500">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-syntra-dark-800 border-syntra-dark-600">
-                      <SelectItem value="dark" className="text-syntra-text-primary hover:bg-syntra-dark-700">
-                        Dark Theme
-                      </SelectItem>
-                      <SelectItem value="light" className="text-syntra-text-primary hover:bg-syntra-dark-700" disabled>
-                        Light Theme (Coming Soon)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-syntra-text-primary font-medium">Language</Label>
-                  <Select value={language} onValueChange={setLanguage}>
-                    <SelectTrigger className="bg-syntra-dark-600 border-syntra-dark-500">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-syntra-dark-800 border-syntra-dark-600">
-                      <SelectItem value="en" className="text-syntra-text-primary hover:bg-syntra-dark-700">
-                        English
-                      </SelectItem>
-                      <SelectItem value="es" className="text-syntra-text-primary hover:bg-syntra-dark-700" disabled>
-                        Spanish (Coming Soon)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-
-        <div className="flex gap-3 pt-6 border-t border-syntra-dark-600">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 hover:bg-syntra-dark-700">
-            Cancel
-          </Button>
-          <Button onClick={handleSave} variant="syntra" className="flex-1">
-            Save Changes
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   )

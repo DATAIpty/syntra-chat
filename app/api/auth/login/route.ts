@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { User, Tokens, UserLogin, LoginResponse } from '@/types'
-import api from '@/lib/api'
+import { mainApi } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   const payload: UserLogin = await req.json()
   console.log("Login request payload:", payload)
   try {
-    const result: LoginResponse = await api.auth.login(payload)
+    const result: LoginResponse = await mainApi.auth.login(payload)
 
     const user: User = result.user;
     const tokens: Tokens = {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       JSON.stringify({
         id: user.id,
         orgId: user.organization_id,
-        name: user.full_name,
+        full_name: user.full_name,
         email: user.email,
         role: user.role,
         avatar: user.avatar_url ? user.avatar_url : null,

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
@@ -46,7 +47,7 @@ export default function LoginPage() {
 
       if (!response.ok) throw new Error(result.message)
 
-      // For demo purposes, redirect to chat
+      // Redirect to chat on success
       window.location.href = "/chat"
     } catch (err) {
       setError("Invalid credentials. Please try again.")
@@ -56,18 +57,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen syntra-gradient flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="bg-syntra-dark-800 border-syntra-dark-600 shadow-2xl">
-          <CardHeader className="text-center space-y-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+      {/* Theme toggle in top-right corner */}
+      <div className="absolute top-6 right-6 z-20">
+        <ThemeToggle />
+      </div>
+
+      {/* Background gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary to-muted opacity-50" />
+      
+      <div className="w-full max-w-md relative z-10">
+        <Card className="bg-card border-border shadow-2xl backdrop-blur-sm">
+          <CardHeader className="text-center space-y-4 pb-8">
             <div className="flex justify-center">
               <Image src="/syntra-logo.png" alt="Syntra" width={100} height={100} className="" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-heading font-bold text-syntra-text-primary">
-                Welcome to Syntra
+              <CardTitle className="text-2xl font-heading font-bold text-foreground">
+                Welcome to Syntra Chat
               </CardTitle>
-              <CardDescription className="text-syntra-text-secondary mt-2">
+              <CardDescription className="text-muted-foreground mt-2">
                 Sign in to access your enterprise AI assistant
               </CardDescription>
             </div>
@@ -76,7 +85,7 @@ export default function LoginPage() {
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-syntra-text-primary font-medium">
+                <Label htmlFor="email" className="text-foreground font-medium">
                   Email Address
                 </Label>
                 <Input
@@ -85,13 +94,13 @@ export default function LoginPage() {
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-syntra-dark-700 border-syntra-dark-600 text-syntra-text-primary placeholder:text-syntra-text-muted focus:border-syntra-primary focus:ring-syntra-primary/20"
+                  className="bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-syntra-primary focus:ring-syntra-primary/20"
                   disabled={isLoading}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-syntra-text-primary font-medium">
+                <Label htmlFor="password" className="text-foreground font-medium">
                   Password
                 </Label>
                 <div className="relative">
@@ -101,7 +110,7 @@ export default function LoginPage() {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-syntra-dark-700 border-syntra-dark-600 text-syntra-text-primary placeholder:text-syntra-text-muted focus:border-syntra-primary focus:ring-syntra-primary/20 pr-10"
+                    className="bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-syntra-primary focus:ring-syntra-primary/20 pr-10"
                     disabled={isLoading}
                   />
                   <Button
@@ -113,21 +122,25 @@ export default function LoginPage() {
                     disabled={isLoading}
                   >
                     {showPassword ? (
-                      <EyeOff className="size-4 text-syntra-text-muted" />
+                      <EyeOff className="size-4 text-muted-foreground" />
                     ) : (
-                      <Eye className="size-4 text-syntra-text-muted" />
+                      <Eye className="size-4 text-muted-foreground" />
                     )}
                   </Button>
                 </div>
               </div>
 
               {error && (
-                <Alert className="bg-syntra-danger/10 border-syntra-danger/30">
-                  <AlertDescription className="text-syntra-danger text-sm">{error}</AlertDescription>
+                <Alert className="bg-destructive/10 border-destructive/30">
+                  <AlertDescription className="text-destructive text-sm">{error}</AlertDescription>
                 </Alert>
               )}
 
-              <Button type="submit" variant="syntra" className="w-full" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full bg-syntra-primary hover:bg-syntra-primary-dark text-white font-medium py-2.5 transition-colors"
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="size-4 mr-2 animate-spin" />
@@ -142,20 +155,23 @@ export default function LoginPage() {
             <div className="space-y-4 text-center">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-syntra-dark-600" />
+                  <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-syntra-dark-800 px-2 text-syntra-text-muted">Need access?</span>
+                  <span className="bg-card px-2 text-muted-foreground font-medium">Need access?</span>
                 </div>
               </div>
 
-              <p className="text-sm text-syntra-text-muted">
-                Don't have an account? <span className="font-medium">Contact your organization administrator</span> to
-                get access to Syntra.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Don't have an account?{" "}
+                <span className="font-medium text-foreground">Contact your organization administrator</span>{" "}
+                to get access to Syntra Chat.
               </p>
 
               <Link
-                href="https://syntra.com"
+                href="https://syntra.dataai.co.za/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center text-sm text-syntra-electric hover:text-syntra-electric/80 transition-colors font-medium"
               >
                 Visit Syntra Platform →
@@ -165,7 +181,9 @@ export default function LoginPage() {
         </Card>
 
         <div className="mt-8 text-center">
-          <p className="text-xs text-syntra-text-muted">Powered by Syntra Enterprise AI Platform</p>
+          <p className="text-xs text-muted-foreground">
+            Powered by Syntra Enterprise AI Platform
+          </p>
         </div>
       </div>
     </div>

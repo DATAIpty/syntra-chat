@@ -1,4 +1,4 @@
-// lib/api/client.ts
+// lib/api/chat-api-client.ts
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 
 // Define your base URL from environment variables

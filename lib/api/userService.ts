@@ -5,9 +5,8 @@ import { User, UserDetails, UserProfile, UserPasswordChange, TeamReference, Succ
 const usersService = {
   
 
-  updateProfile: async (payload: UserProfile): Promise<User> => {
-    const accessToken = undefined; 
-    const apiClient = await createApiClient(accessToken);
+  updateProfile: async (payload: UserProfile): Promise<User> => { 
+    const apiClient = await createApiClient();
     try {
       const response = await apiClient.put<User>('/users/me', payload);
       return response.data;
@@ -17,8 +16,7 @@ const usersService = {
   },
 
   getMyProfile: async (): Promise<UserDetails> => {
-    const accessToken = undefined; 
-    const apiClient = await createApiClient(accessToken);
+    const apiClient = await createApiClient();
     try {
       const response = await apiClient.get<UserDetails>('/users/me');
       return response.data;
@@ -27,9 +25,8 @@ const usersService = {
     }
   },
 
-  getCollections: async (): Promise<Collection[]> => {
-    const accessToken = undefined; 
-    const apiClient = await createApiClient(accessToken);
+  getCollections: async (): Promise<Collection[]> => { 
+    const apiClient = await createApiClient();
     try {
       const response = await apiClient.get<Collection[]>('/collections/chat-accessible');
       return response.data;

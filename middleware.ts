@@ -6,30 +6,45 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   const accessToken = req.cookies.get('syntra_chat_accessToken')?.value
 
-  // Define route groups based on your actual folder structure
-  const isAuthRoute = pathname.startsWith('/login') 
+  // Define route groups
+  const isAuthRoute = pathname.startsWith('/login')
+  const isProtectedRoute = !isAuthRoute && pathname !== '/' // Assuming you want to protect all routes except login
 
-  // If no token and trying to access protected routes
+  // Case 1: User has no token
   if (!accessToken) {
-    return NextResponse.redirect(new URL('/login', req.url))
+    // If already on login page, let them through
+    if (isAuthRoute) {
+      return NextResponse.next()
+    }
+    // If trying to access protected route, redirect to login
+    if (isProtectedRoute) {
+      return NextResponse.redirect(new URL('/login', req.url))
+    }
+    return NextResponse.next()
   }
 
-  // If token exists, check if it's expired
+  // Case 2: User has token but it's expired
   if (isTokenExpired(accessToken)) {
-    // Clear cookies
+    // Clear cookies and redirect to login
     const response = NextResponse.redirect(new URL('/login', req.url))
     response.cookies.set('syntra_chat_accessToken', '', { maxAge: -1, path: '/' })
     response.cookies.set('syntra_chat_user', '', { maxAge: -1, path: '/' })
     return response
   }
 
-  // If user is authenticated but on auth routes, redirect to chat
+  // Case 3: User has valid token but is on auth routes
   if (isAuthRoute) {
     return NextResponse.redirect(new URL('/chat', req.url))
   }
 
-  
+  if (pathname === '/') {
+  if (!accessToken || isTokenExpired(accessToken)) {
+    return NextResponse.redirect(new URL('/login', req.url))
+  }
+  return NextResponse.redirect(new URL('/chat', req.url))
+}
 
+  // Case 4: Valid token accessing protected routes
   return NextResponse.next()
 }
 
