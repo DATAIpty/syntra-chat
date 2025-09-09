@@ -6,15 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/ui/avatar"
 import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { 
   Copy, 
   Edit2, 
-  MoreHorizontal, 
   RefreshCw, 
   Check, 
   X, 
@@ -30,42 +23,76 @@ interface MessageBubbleProps {
   isEditing?: boolean
   isStreaming?: boolean
   isRegenerating?: boolean
-  onEdit?: () => void
-  onSaveEdit?: (newContent: string) => void
-  onCancelEdit?: () => void
-  onRegenerate?: () => void
-  onCopy?: (content: string) => void
+  onEdit?: (messageId: string, newContent: string) => void | Promise<void>
+  onRegenerate?: (messageId: string) => void | Promise<void>
+  onCopy?: (content: string) => void | Promise<void>
   className?: string
 }
 
 export function MessageBubble({
   message,
-  isEditing,
-  isStreaming,
-  isRegenerating,
+  isEditing = false,
+  isStreaming = false,
+  isRegenerating = false,
   onEdit,
-  onSaveEdit,
-  onCancelEdit,
   onRegenerate,
   onCopy,
   className,
 }: MessageBubbleProps) {
   const [editContent, setEditContent] = useState(message.content)
   const [showActions, setShowActions] = useState(false)
+  const [isEditingLocal, setIsEditingLocal] = useState(false)
   
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
 
-  const handleSaveEdit = () => {
-    if (editContent.trim() !== message.content) {
-      onSaveEdit?.(editContent.trim())
+  // Reset edit content when message content changes
+  React.useEffect(() => {
+    setEditContent(message.content)
+  }, [message.content])
+
+  const handleStartEdit = () => {
+    setEditContent(message.content)
+    setIsEditingLocal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (editContent.trim() !== message.content && onEdit) {
+      try {
+        await onEdit(message.id, editContent.trim())
+        setIsEditingLocal(false)
+      } catch (error) {
+        // Handle error if needed
+        console.error('Failed to edit message:', error)
+      }
+    } else {
+      setIsEditingLocal(false)
     }
-    onCancelEdit?.()
   }
 
   const handleCancelEdit = () => {
     setEditContent(message.content)
-    onCancelEdit?.()
+    setIsEditingLocal(false)
+  }
+
+  const handleRegenerate = async () => {
+    if (onRegenerate) {
+      try {
+        await onRegenerate(message.id)
+      } catch (error) {
+        console.error('Failed to regenerate message:', error)
+      }
+    }
+  }
+
+  const handleCopy = async () => {
+    if (onCopy) {
+      try {
+        await onCopy(message.content)
+      } catch (error) {
+        console.error('Failed to copy message:', error)
+      }
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -85,10 +112,12 @@ export function MessageBubble({
     }
   }
 
+  const currentlyEditing = isEditing || isEditingLocal
+
   return (
     <div
       className={cn(
-        "group relative px-4 py-3 hover:bg-muted/30 transition-colors",
+        "group relative py-3 hover:bg-muted/30 transition-colors",
         className,
       )}
       onMouseEnter={() => setShowActions(true)}
@@ -132,7 +161,7 @@ export function MessageBubble({
           </div>
 
           {/* Message Body */}
-          {isEditing ? (
+          {currentlyEditing ? (
             <div className="space-y-2">
               <Textarea
                 value={editContent}
@@ -169,7 +198,7 @@ export function MessageBubble({
                 : "bg-card border border-border text-card-foreground"
             )}>
               <div className="whitespace-pre-wrap break-words text-sm">
-                {message.content}
+                {message.content || (isStreaming ? '' : 'Message content not available')}
                 {isStreaming && (
                   <span className="animate-pulse">▊</span>
                 )}
@@ -187,7 +216,7 @@ export function MessageBubble({
           )}
 
           {/* Action Buttons */}
-          {!isEditing && (showActions || isRegenerating) && (
+          {!currentlyEditing && (showActions || isRegenerating) && (
             <div className={cn(
               "flex items-center gap-1 mt-2 transition-opacity",
               isUser ? "justify-end" : "justify-start"
@@ -196,7 +225,7 @@ export function MessageBubble({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 hover:bg-muted"
-                onClick={() => onCopy?.(message.content)}
+                onClick={handleCopy}
                 title="Copy message"
               >
                 <Copy className="size-3" />
@@ -207,7 +236,7 @@ export function MessageBubble({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 hover:bg-muted"
-                  onClick={onEdit}
+                  onClick={handleStartEdit}
                   title="Edit message"
                 >
                   <Edit2 className="size-3" />
@@ -219,7 +248,7 @@ export function MessageBubble({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 hover:bg-muted"
-                  onClick={onRegenerate}
+                  onClick={handleRegenerate}
                   disabled={isRegenerating}
                   title="Regenerate response"
                 >

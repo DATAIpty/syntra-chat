@@ -12,12 +12,15 @@ export interface ChatMessage {
     processing_time?: number;
     edited?: boolean;
     regenerated?: boolean;
+    tools_used?: string[];
+    sources?: string[];
   };
 }
 
 export interface CreateConversationRequest {
   title: string;
-  collection_names: string[]; // Changed to array for multiple collections
+  collection_names: string[];
+  user_id: string;
   personality_type?: string;
   role_type?: string;
   custom_role?: string;
@@ -76,14 +79,16 @@ export interface ChatResponse {
 }
 
 export interface ConversationListItem {
-  id: string;
+  conversation_id: string;
   title: string;
   status: 'active' | 'archived' | 'deleted';
-  last_message_at: string;
-  message_count: number;
+  last_activity: string;
+  total_turns: number;
   created_at: string;
-  updated_at: string;
-  preview?: string; // Last message preview
+  collection_names: string[];
+  personality_type: string;
+  role_type: string;
+  topic_summary?: string;
 }
 
 export interface ConversationListResponse {
@@ -94,11 +99,21 @@ export interface ConversationListResponse {
   has_more: boolean;
 }
 
+export interface History {
+  turn_id: string;
+  user_message: string;
+  assistant_response: string;
+  timestamp: string;
+  response_time_ms: number;
+  sources_count: number;
+  tools_used: string[];
+}
+
 export interface ConversationHistory {
-  messages: ChatMessage[];
-  total_count: number;
+  history: History[];
+  total_shown: number;
+  page: number;
   limit: number;
-  offset: number;
   has_more: boolean;
   conversation_id: string;
 }

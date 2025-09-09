@@ -1,10 +1,12 @@
 // hooks/useAppState.ts
 import { CreateConversationRequest } from '@/types/chat';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useAuth } from './useAuth';
-import { useConversations, useCreateConversation, useDeleteConversation, useUpdateConversationTitle, useCollections } from './useChat';
+import { useConversations, useCreateConversation, useDeleteConversation, useUpdateConversationTitle, useCollections, queryKeys } from './useChat';
+import { useQueryClient } from '@tanstack/react-query';
+import { chatApi } from '@/lib/api';
 
 // ================================
 // APP UI STATE STORE
@@ -103,12 +105,18 @@ export const useConversationManager = () => {
     setNewConversationModalOpen,
     conversationSearch 
   } = useAppStore();
+
+  const auth = useAuth();
+  const queryClient = useQueryClient();
   
   const { 
     data: conversations,
     isLoading: isLoadingConversations,
     refetch: refetchConversations 
-  } = useConversations();
+  } = useConversations({ 
+    user_id: auth.user?.id || '',
+    enabled: !!auth.user?.id
+  });
 
   const createConversationMutation = useCreateConversation();
   const deleteConversationMutation = useDeleteConversation();
@@ -117,6 +125,12 @@ export const useConversationManager = () => {
   const createAndSelectConversation = async (request: CreateConversationRequest) => {
     try {
       const response = await createConversationMutation.mutateAsync(request);
+      
+      // Clear any existing history cache before setting new conversation
+      queryClient.removeQueries({ 
+        queryKey: ['conversations', response.conversation_id, 'history'] 
+      });
+      
       setActiveConversation(response.conversation_id);
       setNewConversationModalOpen(false);
       return response;
@@ -125,9 +139,37 @@ export const useConversationManager = () => {
     }
   };
   
+  // Enhanced conversation selection with proper cache handling
+  const selectConversation = useCallback((conversationId: string) => {
+    console.log(`Selecting conversation: ${conversationId}`);
+    
+    // If selecting the same conversation, force refresh
+    if (conversationId === activeConversationId) {
+      console.log('Same conversation selected, forcing refresh');
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.conversationHistory(conversationId) 
+      });
+    }
+    
+    // Set the new active conversation
+    setActiveConversation(conversationId);
+    
+    // Prefetch the conversation history to ensure we have fresh data
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.conversationHistory(conversationId, 50, 0),
+      queryFn: () => chatApi.chat.getConversationHistory(conversationId, auth.user?.id || '', 50, 0),
+      staleTime: 0, // Force fresh fetch
+    });
+  }, [activeConversationId, setActiveConversation, queryClient, auth.user?.id]);
+  
   const deleteConversation = async (conversationId: string) => {
     try {
       await deleteConversationMutation.mutateAsync(conversationId);
+      
+      // Remove all cached data for this conversation
+      queryClient.removeQueries({ 
+        queryKey: ['conversations', conversationId] 
+      });
       
       // If we're deleting the active conversation, clear the selection
       if (activeConversationId === conversationId) {
@@ -149,7 +191,7 @@ export const useConversationManager = () => {
   // Filter conversations based on search
   const filteredConversations = conversations?.conversations.filter(conv =>
     conv.title.toLowerCase().includes(conversationSearch.toLowerCase()) ||
-    (conv.preview && conv.preview.toLowerCase().includes(conversationSearch.toLowerCase()))
+    (conv.topic_summary && conv.topic_summary.toLowerCase().includes(conversationSearch.toLowerCase()))
   ) || [];
 
   return {
@@ -160,6 +202,7 @@ export const useConversationManager = () => {
     
     // Actions
     setActiveConversation,
+    selectConversation, // Use this instead of setActiveConversation
     createAndSelectConversation,
     deleteConversation,
     updateConversationTitle,
@@ -301,8 +344,8 @@ export const useApp = () => {
       setEditingMessageId: appStore.setEditingMessageId,
     },
     
-    // Data
-    collections: collectionsQuery.data || [],
+    // Data - only provide collections if user is authenticated
+    collections: auth.user ? collectionsQuery.data || [] : [],
     isLoadingCollections: collectionsQuery.isLoading,
     collectionsError: collectionsQuery.error,
     

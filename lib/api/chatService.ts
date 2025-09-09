@@ -64,7 +64,7 @@ const chatService = {
       const API_BASE_URL = process.env.NEXT_PUBLIC_CHAT_API_URL;
       const API_KEY = process.env.NEXT_PUBLIC_CHAT_API_KEY;
 
-      const response = await fetch(`${API_BASE_URL}/chat`, {
+      const response = await fetch(`${API_BASE_URL}chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,6 +139,7 @@ const chatService = {
    */
   listConversations: async (params?: {
     status?: string;
+    user_id: string;
     limit?: number;
     offset?: number;
     search?: string;
@@ -159,12 +160,14 @@ const chatService = {
    * Get conversation details
    */
   getConversationDetails: async (
-    conversationId: string
+    conversationId: string,
+    userId: string
   ): Promise<ConversationDetails> => {
     const apiClient = await createApiClient();
     try {
       const response = await apiClient.get<ConversationDetails>(
-        `/conversations/${conversationId}`
+        `/conversations/${conversationId}`,
+      { params: { user_id: userId } }
       );
       return response.data;
     } catch (error) {
@@ -177,6 +180,7 @@ const chatService = {
    */
   getConversationHistory: async (
     conversationId: string,
+    userId: string,
     limit = 20,
     offset = 0
   ): Promise<ConversationHistory> => {
@@ -184,7 +188,7 @@ const chatService = {
     try {
       const response = await apiClient.get<ConversationHistory>(
         `/conversations/${conversationId}/history`,
-        { params: { limit, offset } }
+        { params: { user_id: userId, limit, offset } }
       );
       return response.data;
     } catch (error) {
@@ -279,7 +283,7 @@ const chatService = {
     const apiClient = await createApiClient();
     try {
       const response = await apiClient.get("/personalities");
-      return response.data;
+      return response.data.personalities;
     } catch (error) {
       console.warn("Personalities not available from chat API:", error);
       return [
@@ -355,7 +359,7 @@ const chatService = {
     const apiClient = await createApiClient();
     try {
       const response = await apiClient.get("/roles");
-      return response.data;
+      return response.data.roles;
     } catch (error) {
       console.warn("Roles not available from chat API:", error);
       return [

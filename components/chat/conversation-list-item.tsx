@@ -41,7 +41,7 @@ export function ConversationListItem({
 
   const handleSaveEdit = () => {
     if (editTitle.trim() && editTitle !== conversation.title) {
-      onRename?.(conversation.id, editTitle.trim())
+      onRename?.(conversation.conversation_id, editTitle.trim())
     }
     setIsEditing(false)
   }
@@ -129,15 +129,15 @@ export function ConversationListItem({
               </h3>
               <div className="flex items-center justify-between mt-1">
                 <p className="text-xs text-muted-foreground">
-                  {conversation.message_count} message{conversation.message_count !== 1 ? 's' : ''}
+                  {conversation.total_turns || 0} message{(conversation.total_turns || 0) !== 1 ? 's' : ''}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {formatTime(conversation.updated_at)}
+                  {formatTime(conversation.last_activity)}
                 </p>
               </div>
-              {conversation.preview && (
+              {conversation.topic_summary && (
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                  {conversation.preview}
+                  {conversation.topic_summary}
                 </p>
               )}
             </>
@@ -174,7 +174,7 @@ export function ConversationListItem({
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation()
-                      onDelete(conversation.id)
+                      onDelete(conversation.conversation_id)
                     }}
                     className="text-destructive focus:text-destructive"
                   >

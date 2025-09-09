@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
   DropdownMenu,
@@ -59,7 +58,7 @@ export function ChatSidebar({
 
   const filteredConversations = conversations.filter((conv) =>
     conv.title.toLowerCase().includes(searchValue.toLowerCase()) ||
-    (conv.preview && conv.preview.toLowerCase().includes(searchValue.toLowerCase()))
+    (conv.topic_summary && conv.topic_summary.toLowerCase().includes(searchValue.toLowerCase()))
   )
 
   return (
@@ -72,17 +71,17 @@ export function ChatSidebar({
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Fixed height structure */}
       <div
         className={cn(
-          "fixed left-0 top-0 h-full w-80 bg-sidebar border-r border-sidebar-border z-50 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+          "fixed left-0 top-0 h-full w-80 bg-sidebar border-r border-sidebar-border z-50 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-auto",
           isOpen ? "translate-x-0" : "-translate-x-full",
           className,
         )}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="p-4 border-b border-sidebar-border">
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Header - Fixed */}
+          <div className="shrink-0 p-4 border-b border-sidebar-border">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-heading font-semibold text-sidebar-foreground">
                 Conversations
@@ -109,8 +108,8 @@ export function ChatSidebar({
             </Button>
           </div>
 
-          {/* Search */}
-          <div className="p-4 border-b border-sidebar-border">
+          {/* Search - Fixed */}
+          <div className="shrink-0 p-4 border-b border-sidebar-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -122,41 +121,43 @@ export function ChatSidebar({
             </div>
           </div>
 
-          {/* Conversations List */}
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-2">
-              {filteredConversations.length > 0 ? (
-                filteredConversations.map((conversation) => (
-                  <ConversationListItem
-                    key={conversation.id}
-                    conversation={conversation}
-                    isActive={conversation.id === activeConversationId}
-                    onClick={() => onSelectConversation(conversation.id)}
-                    onDelete={onDeleteConversation}
-                    onRename={onRenameConversation}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground text-sm">
-                    {searchValue ? "No conversations found" : "No conversations yet"}
-                  </p>
-                  {!searchValue && (
-                    <Button
-                      variant="ghost"
-                      className="mt-2 text-primary hover:text-primary/80"
-                      onClick={onNewConversation}
-                    >
-                      Start your first conversation
-                    </Button>
-                  )}
-                </div>
-              )}
+          {/* Conversations List - Scrollable */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="p-4">
+              <div className="space-y-2">
+                {filteredConversations.length > 0 ? (
+                  filteredConversations.map((conversation) => (
+                    <ConversationListItem
+                      key={conversation.conversation_id}
+                      conversation={conversation}
+                      isActive={conversation.conversation_id === activeConversationId}
+                      onClick={() => onSelectConversation(conversation.conversation_id)}
+                      onDelete={onDeleteConversation}
+                      onRename={onRenameConversation}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground text-sm">
+                      {searchValue ? "No conversations found" : "No conversations yet"}
+                    </p>
+                    {!searchValue && (
+                      <Button
+                        variant="ghost"
+                        className="mt-2 text-primary hover:text-primary/80"
+                        onClick={onNewConversation}
+                      >
+                        Start your first conversation
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </ScrollArea>
+          </div>
 
-          {/* User Profile */}
-          <div className="p-4 border-t border-sidebar-border bg-sidebar-accent">
+          {/* User Profile - Fixed at bottom */}
+          <div className="shrink-0 p-4 border-t border-sidebar-border bg-sidebar-accent">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 

@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, Settings, Loader2 } from "lucide-react"
 import { Collection } from "@/types"
 import { PersonalityOption, RoleOption, CreateConversationRequest } from "@/types/chat"
+import { useApp } from "@/hooks/useAppState"
 
 interface NewConversationModalProps {
   open: boolean
@@ -32,9 +33,11 @@ export function NewConversationModal({
   roleTypes,
   isCreating = false,
 }: NewConversationModalProps) {
+  const { auth } = useApp()
   const [formData, setFormData] = useState<CreateConversationRequest>({
     title: "",
     collection_names: [],
+    user_id: auth.user?.id || "",
     personality_type: "professional",
     role_type: "general_assistant",
     communication_style: "balanced",
@@ -55,7 +58,7 @@ export function NewConversationModal({
     if (!formData.title.trim() || formData.collection_names.length === 0) {
       return
     }
-
+    // console.log('data: ', formData)
     try {
       await onCreateConversation({
         ...formData,
@@ -74,6 +77,7 @@ export function NewConversationModal({
     setFormData({
       title: "",
       collection_names: [],
+      user_id: auth.user?.id || "",
       personality_type: "professional",
       role_type: "general_assistant", 
       communication_style: "balanced",
@@ -138,9 +142,9 @@ export function NewConversationModal({
                   <div key={collection.id} className="flex items-start space-x-2">
                     <Checkbox
                       id={collection.id}
-                      checked={formData.collection_names.includes(collection.id)}
+                      checked={formData.collection_names.includes(collection.name)}
                       onCheckedChange={(checked) => 
-                        handleCollectionToggle(collection.id, checked as boolean)
+                        handleCollectionToggle(collection.name, checked as boolean)
                       }
                       disabled={isCreating}
                     />

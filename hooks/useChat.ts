@@ -1,6 +1,6 @@
 // hooks/useChat.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { mainApi, chatApi } from '@/lib/api';
 import {
   CreateConversationRequest,
@@ -8,19 +8,54 @@ import {
   ConversationStatusUpdate,
   StreamChunk,
   ChatMessage,
+  History,
 } from '@/types/chat';
 import { Collection } from '@/types';
+import { useAuth } from './useAuth';
+
+export const convertHistoryToChatMessages = (history: History[], conversationId: string): ChatMessage[] => {
+  const messages: ChatMessage[] = [];
+  
+  history.forEach((turn) => {
+    // Add user message
+    messages.push({
+      id: `${turn.turn_id}-user`,
+      conversation_id: conversationId,
+      role: 'user',
+      content: turn.user_message,
+      timestamp: turn.timestamp,
+      metadata: {
+        processing_time: turn.response_time_ms,
+      }
+    });
+    
+    // Add assistant message
+    messages.push({
+      id: `${turn.turn_id}-assistant`,
+      conversation_id: conversationId,
+      role: 'assistant',
+      content: turn.assistant_response,
+      timestamp: turn.timestamp,
+      metadata: {
+        processing_time: turn.response_time_ms,
+        sources: turn.sources_count > 0 ? [`${turn.sources_count} sources`] : undefined,
+        tools_used: turn.tools_used.length > 0 ? turn.tools_used : undefined,
+      }
+    });
+  });
+  
+  return messages.sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+};
 
 // ================================
 // QUERY KEYS
 // ================================
 export const queryKeys = {
-  // Main API queries
   collections: ['collections'] as const,
   userProfile: ['userProfile'] as const,
   userTeams: ['userTeams'] as const,
-  
-  // Chat API queries
   conversations: ['conversations'] as const,
   conversationDetails: (id: string) => ['conversations', id] as const,
   conversationHistory: (id: string, limit?: number, offset?: number) => 
@@ -91,13 +126,16 @@ export const useCreateConversation = () => {
  */
 export const useConversations = (params?: {
   status?: string;
+  user_id: string;
   limit?: number;
   offset?: number;
   search?: string;
+  enabled?: boolean;
 }) => {
   return useQuery({
     queryKey: [...queryKeys.conversations, params],
     queryFn: () => chatApi.chat.listConversations(params),
+    enabled: params?.enabled !== false && !!params?.user_id, // Only run if enabled and user_id exists
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 };
@@ -105,10 +143,10 @@ export const useConversations = (params?: {
 /**
  * Get conversation details
  */
-export const useConversationDetails = (conversationId: string | null) => {
+export const useConversationDetails = (conversationId: string | null, userId: string | null) => {
   return useQuery({
     queryKey: queryKeys.conversationDetails(conversationId || ''),
-    queryFn: () => chatApi.chat.getConversationDetails(conversationId!),
+    queryFn: () => chatApi.chat.getConversationDetails(conversationId!, userId!),
     enabled: !!conversationId,
     staleTime: 5 * 60 * 1000,
   });
@@ -119,14 +157,30 @@ export const useConversationDetails = (conversationId: string | null) => {
  */
 export const useConversationHistory = (
   conversationId: string | null,
+  userId: string | null,
   limit = 50,
   offset = 0
 ) => {
   return useQuery({
     queryKey: queryKeys.conversationHistory(conversationId || '', limit, offset),
-    queryFn: () => chatApi.chat.getConversationHistory(conversationId!, limit, offset),
-    enabled: !!conversationId,
-    staleTime: 1 * 60 * 1000, // 1 minute
+    queryFn: async () => {
+      if (!conversationId || !userId) {
+        throw new Error('ConversationId and userId are required');
+      }
+      
+      console.log(`Fetching history for conversation: ${conversationId}`);
+      return await chatApi.chat.getConversationHistory(conversationId, userId, limit, offset);
+    },
+    enabled: !!conversationId && !!userId,
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes in cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: true, // Always refetch on mount
+    refetchOnReconnect: true,
+    retry: (failureCount, error) => {
+      console.error(`History fetch failed (attempt ${failureCount}):`, error);
+      return failureCount < 3;
+    },
   });
 };
 
@@ -211,34 +265,52 @@ export const useChatStream = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+    setStreamingMessage('');
+    setError(null);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
 
   const streamChat = useCallback(async (
     request: ChatRequest,
     onComplete?: (messageId: string, fullMessage: string) => void
   ) => {
     // Cancel any existing stream
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    cleanup();
 
     abortControllerRef.current = new AbortController();
     
     setIsStreaming(true);
     setStreamingMessage('');
     setError(null);
-    setCurrentMessageId(null);
+
+    let accumulatedMessage = '';
 
     const options = {
       onChunk: (chunk: StreamChunk) => {
         if (chunk.type === 'chunk' && chunk.content) {
-          setStreamingMessage(prev => prev + chunk.content);
+          accumulatedMessage += chunk.content;
+          setStreamingMessage(accumulatedMessage);
         }
       },
       onComplete: () => {
         setIsStreaming(false);
+        
         // Invalidate related queries
         queryClient.invalidateQueries({ 
           queryKey: queryKeys.conversationHistory(request.conversation_id) 
@@ -246,32 +318,37 @@ export const useChatStream = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
         
         if (onComplete) {
-          onComplete(currentMessageId || '', streamingMessage);
+          // Use accumulated message instead of state to avoid stale closure
+          onComplete('generated-message-id', accumulatedMessage);
         }
+        
+        // Clear streaming message after completion
+        setTimeout(() => {
+          setStreamingMessage('');
+        }, 100);
       },
       onError: (errorMessage: string) => {
         setError(errorMessage);
         setIsStreaming(false);
+        setStreamingMessage('');
       }
     };
 
     try {
       await chatApi.chat.chatStream(request, options);
     } catch (error) {
-      setError((error as Error).message || 'Failed to start stream');
+      const errorMessage = (error as Error).message || 'Failed to start stream';
+      setError(errorMessage);
       setIsStreaming(false);
+      setStreamingMessage('');
     }
-  }, [queryClient, currentMessageId, streamingMessage]);
+  }, [queryClient, cleanup]);
 
   const stopStream = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    setIsStreaming(false);
-  }, []);
+    cleanup();
+  }, [cleanup]);
 
   const clearError = useCallback(() => setError(null), []);
-  const clearMessage = useCallback(() => setStreamingMessage(''), []);
 
   return {
     streamChat,
@@ -280,7 +357,6 @@ export const useChatStream = () => {
     streamingMessage,
     error,
     clearError,
-    clearMessage,
   };
 };
 
@@ -330,80 +406,244 @@ export const useRegenerateMessage = () => {
 /**
  * Combined hook for managing an active chat session
  */
+
+
 export const useChatSession = (conversationId: string | null) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [optimisticMessage, setOptimisticMessage] = useState<string | null>(null);
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  
+  const auth = useAuth();
+  const queryClient = useQueryClient();
+  
+  // Track the current conversation ID to detect changes
+  const prevConversationId = useRef<string | null>(null);
   
   // Core queries
-  const conversationQuery = useConversationDetails(conversationId);
-  const historyQuery = useConversationHistory(conversationId);
+  const conversationQuery = useConversationDetails(conversationId, auth.user?.id || null);
+  const historyQuery = useConversationHistory(conversationId, auth.user?.id || null);
   
   // Mutations
   const streamMutation = useChatStream();
   const editMutation = useEditMessage();
   const regenerateMutation = useRegenerateMessage();
 
-  // Send message with optimistic update
-  const sendMessage = useCallback(async (content: string) => {
-    if (!conversationId) return;
+  // Clear optimistic messages when conversation changes
+  useEffect(() => {
+    if (conversationId !== prevConversationId.current) {
+      console.log(`Conversation changed from ${prevConversationId.current} to ${conversationId}`);
+      
+      // Clear optimistic state
+      setOptimisticMessages([]);
+      setIsStreaming(false);
+      
+      // Force refetch history for the new conversation
+      if (conversationId) {
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.conversationHistory(conversationId) 
+        });
+      }
+      
+      prevConversationId.current = conversationId;
+    }
+  }, [conversationId, queryClient]);
 
-    // Add optimistic user message
-    const optimisticUserMessage: ChatMessage = {
-      id: `temp-${Date.now()}`,
+  // Clear optimistic messages when fresh data arrives from server
+  useEffect(() => {
+    if (historyQuery.data?.history && optimisticMessages.length > 0 && !isStreaming) {
+      console.log('Fresh history data received, checking if we can clear optimistic messages');
+      
+      // Convert server history to check if our optimistic messages are now in the server data
+      const serverMessages = convertHistoryToChatMessages(historyQuery.data.history, conversationId || '');
+      
+      // Check if we have any optimistic user messages that might now be in server data
+      const optimisticUserMessages = optimisticMessages.filter(msg => msg.role === 'user');
+      
+      if (optimisticUserMessages.length > 0) {
+        // Check if ALL optimistic user messages are now in server data
+        const allOptimisticInServer = optimisticUserMessages.every(optimisticMsg => 
+          serverMessages.some(serverMsg => 
+            serverMsg.role === 'user' && 
+            serverMsg.content.trim() === optimisticMsg.content.trim()
+          )
+        );
+        
+        if (allOptimisticInServer) {
+          console.log('All optimistic messages found in server data, clearing optimistic state');
+          setOptimisticMessages([]);
+        }
+      }
+    }
+  }, [historyQuery.data, optimisticMessages, isStreaming, conversationId]);
+
+  // Monitor streaming state changes
+  useEffect(() => {
+    setIsStreaming(streamMutation.isStreaming);
+    
+    // When streaming stops, trigger a refresh after a short delay
+    if (!streamMutation.isStreaming && isStreaming) {
+      console.log('Streaming stopped, scheduling history refresh');
+      setTimeout(() => {
+        if (conversationId) {
+          queryClient.invalidateQueries({ 
+            queryKey: queryKeys.conversationHistory(conversationId) 
+          });
+        }
+      }, 500); // Wait 500ms for the server to process
+    }
+  }, [streamMutation.isStreaming, isStreaming, conversationId, queryClient]);
+
+  // Send message with simpler optimistic update
+  const sendMessage = useCallback(async (content: string) => {
+    if (!conversationId || !content.trim()) return;
+
+    const trimmedContent = content.trim();
+    const timestamp = new Date().toISOString();
+    
+    // Create optimistic messages
+    const userMessage: ChatMessage = {
+      id: `temp-user-${Date.now()}`,
       conversation_id: conversationId,
       role: 'user',
-      content,
-      timestamp: new Date().toISOString(),
+      content: trimmedContent,
+      timestamp: timestamp,
     };
 
-    setMessages(prev => [...prev, optimisticUserMessage]);
-    setOptimisticMessage('');
+    const aiMessage: ChatMessage = {
+      id: `temp-ai-${Date.now()}`,
+      conversation_id: conversationId,
+      role: 'assistant',
+      content: '',
+      timestamp: timestamp,
+    };
 
-    // Start streaming AI response
-    await streamMutation.streamChat(
-      { conversation_id: conversationId, message: content },
-      (messageId, fullMessage) => {
-        // Replace optimistic message with actual response
-        setOptimisticMessage(null);
-        setMessages(prev => [
-          ...prev,
-          {
-            id: messageId,
-            conversation_id: conversationId,
-            role: 'assistant',
-            content: fullMessage,
-            timestamp: new Date().toISOString(),
-          }
-        ]);
-      }
-    );
+    // Add optimistic messages
+    setOptimisticMessages([userMessage, aiMessage]);
+    setIsStreaming(true);
+
+    try {
+      await streamMutation.streamChat(
+        { 
+          conversation_id: conversationId, 
+          message: trimmedContent 
+        }
+        // Remove the onComplete callback - let useEffect handle cache management
+      );
+    } catch (error) {
+      console.error('Stream error:', error);
+      // Clear optimistic state on error
+      setOptimisticMessages([]);
+      setIsStreaming(false);
+      throw error;
+    }
   }, [conversationId, streamMutation]);
+
+  // Update optimistic AI message content during streaming
+  useEffect(() => {
+    if (streamMutation.streamingMessage && optimisticMessages.length > 0) {
+      setOptimisticMessages(prev => 
+        prev.map(msg => 
+          msg.role === 'assistant' ? { ...msg, content: streamMutation.streamingMessage } : msg
+        )
+      );
+    }
+  }, [streamMutation.streamingMessage, optimisticMessages.length]);
 
   // Edit message
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!conversationId) return;
-    await editMutation.mutateAsync({ conversationId, messageId, newContent });
-  }, [conversationId, editMutation]);
+    
+    try {
+      await editMutation.mutateAsync({ conversationId, messageId, newContent });
+      
+      // Force refetch history after edit
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.conversationHistory(conversationId) 
+      });
+    } catch (error) {
+      console.error('Edit message failed:', error);
+      throw error;
+    }
+  }, [conversationId, editMutation, queryClient]);
 
   // Regenerate message
   const regenerateMessage = useCallback(async (messageId: string) => {
     if (!conversationId) return;
-    await regenerateMutation.mutateAsync({ conversationId, messageId });
-  }, [conversationId, regenerateMutation]);
+    
+    try {
+      await regenerateMutation.mutateAsync({ conversationId, messageId });
+      
+      // Force refetch history after regenerate
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.conversationHistory(conversationId) 
+      });
+    } catch (error) {
+      console.error('Regenerate message failed:', error);
+      throw error;
+    }
+  }, [conversationId, regenerateMutation, queryClient]);
 
-  // Update messages when history query changes
-  const historyMessages = historyQuery.data?.messages || [];
+  // Combine server messages with optimistic messages - FIXED LOGIC
+  const allMessages = useMemo(() => {
+    // Convert History objects to ChatMessage format
+    const serverMessages = historyQuery.data?.history 
+      ? convertHistoryToChatMessages(historyQuery.data.history, conversationId || '') 
+      : [];
+    
+    // Always start with server messages
+    let messagesToShow = [...serverMessages];
+    
+    // Add optimistic messages only if:
+    // 1. We have optimistic messages
+    // 2. AND we're still streaming OR the optimistic messages aren't in server data yet
+    if (optimisticMessages.length > 0) {
+      if (isStreaming) {
+        // If streaming, always show optimistic messages
+        messagesToShow = [...serverMessages, ...optimisticMessages];
+      } else {
+        // If not streaming, only show optimistic messages that aren't in server data
+        const optimisticNotInServer = optimisticMessages.filter(optimisticMsg => 
+          !serverMessages.some(serverMsg => 
+            serverMsg.role === optimisticMsg.role && 
+            serverMsg.content.trim() === optimisticMsg.content.trim()
+          )
+        );
+        
+        if (optimisticNotInServer.length > 0) {
+          messagesToShow = [...serverMessages, ...optimisticNotInServer];
+        }
+      }
+    }
+    
+    // Sort by timestamp to ensure proper order
+    return messagesToShow.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }, [historyQuery.data?.history, optimisticMessages, conversationId, isStreaming]);
+
+  // Force refresh function
+  const forceRefreshHistory = useCallback(async () => {
+    if (conversationId) {
+      console.log('Force refreshing history...');
+      setOptimisticMessages([]); // Clear optimistic state
+      await queryClient.invalidateQueries({ 
+        queryKey: queryKeys.conversationHistory(conversationId) 
+      });
+      await queryClient.refetchQueries({ 
+        queryKey: queryKeys.conversationHistory(conversationId) 
+      });
+      console.log('Force refresh completed');
+    }
+  }, [conversationId, queryClient]);
   
   return {
     // Data
     conversation: conversationQuery.data,
-    messages: [...historyMessages, ...messages],
-    optimisticMessage,
+    messages: allMessages,
     
     // Loading states
     isLoadingConversation: conversationQuery.isLoading,
     isLoadingHistory: historyQuery.isLoading,
-    isStreaming: streamMutation.isStreaming,
+    isStreaming: isStreaming,
     isEditing: editMutation.isPending,
     isRegenerating: regenerateMutation.isPending,
     
@@ -411,13 +651,18 @@ export const useChatSession = (conversationId: string | null) => {
     sendMessage,
     editMessage,
     regenerateMessage,
+    forceRefreshHistory,
     
     // Stream controls
     streamingMessage: streamMutation.streamingMessage,
-    stopStream: streamMutation.stopStream,
+    stopStream: () => {
+      streamMutation.stopStream();
+      setOptimisticMessages([]);
+      setIsStreaming(false);
+    },
     
     // Error handling
-    error: streamMutation.error || editMutation.error || regenerateMutation.error,
+    error: streamMutation.error || editMutation.error || regenerateMutation.error || historyQuery.error,
     clearError: () => {
       streamMutation.clearError();
     },
@@ -475,21 +720,24 @@ export const useChangePassword = () => {
 export const useMessageSearch = (conversationId: string | null) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ChatMessage[]>([]);
+  const auth = useAuth();
   
-  const { data: historyData } = useConversationHistory(conversationId);
+  const { data: historyData } = useConversationHistory(conversationId, auth.user?.id || null);
   
   const searchMessages = useCallback((query: string) => {
-    if (!historyData?.messages || !query.trim()) {
+    if (!historyData?.history || !query.trim()) {
       setSearchResults([]);
       return;
     }
     
-    const results = historyData.messages.filter(message =>
+    // Convert history to chat messages and then search
+    const chatMessages = convertHistoryToChatMessages(historyData.history, conversationId || '');
+    const results = chatMessages.filter(message =>
       message.content.toLowerCase().includes(query.toLowerCase())
     );
     
     setSearchResults(results);
-  }, [historyData]);
+  }, [historyData?.history, conversationId]);
 
   return {
     searchQuery,
