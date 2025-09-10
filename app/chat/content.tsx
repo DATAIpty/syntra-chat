@@ -30,53 +30,89 @@ export default function ChatPage() {
   const messagesContainerRef = React.useRef<HTMLDivElement>(null)
   const [isUserScrolling, setIsUserScrolling] = React.useState(false)
   const [scrollTimeout, setScrollTimeout] = React.useState<NodeJS.Timeout>()
+  const lastMessageCountRef = React.useRef(0)
+  const programmaticScrollRef = React.useRef(false)
 
-  // Auto-scroll management
   const scrollToBottom = React.useCallback((force = false) => {
-    if (!messagesEndRef.current || (!force && isUserScrolling)) return
+    if (!messagesEndRef.current) return
+    
+    // Don't auto-scroll if user is manually scrolling, unless forced
+    if (!force && isUserScrolling) return
+    
+    // Mark as programmatic scroll to avoid triggering user scroll detection
+    programmaticScrollRef.current = true
     
     messagesEndRef.current.scrollIntoView({ 
       behavior: 'smooth',
       block: 'end' 
     })
+    
+    // Reset the flag after scroll completes
+    setTimeout(() => {
+      programmaticScrollRef.current = false
+    }, 500)
   }, [isUserScrolling])
 
-  // Handle user scrolling detection
+  // Handle user scrolling detection with better thresholds
   const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    // Ignore programmatic scrolls
+    if (programmaticScrollRef.current) return
+    
     const container = e.currentTarget
     const { scrollTop, scrollHeight, clientHeight } = container
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50 // 50px threshold
     
-    setIsUserScrolling(!isAtBottom)
+    // Increased threshold for better UX - user must scroll up more than 150px from bottom
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 150
     
     // Clear existing timeout
     if (scrollTimeout) {
       clearTimeout(scrollTimeout)
     }
     
-    // Set user as scrolling, reset after 1 second of no scroll events
-    const timeout = setTimeout(() => {
+    if (isNearBottom) {
+      // User is near bottom, enable auto-scroll
       setIsUserScrolling(false)
-    }, 1000)
-    
-    setScrollTimeout(timeout)
+    } else {
+      // User has scrolled up significantly, disable auto-scroll
+      setIsUserScrolling(true)
+      
+      // Reset user scrolling state after 3 seconds of no scroll activity
+      const timeout = setTimeout(() => {
+        // Double-check if still near bottom when timeout fires
+        const { scrollTop: currentScrollTop, scrollHeight: currentScrollHeight, clientHeight: currentClientHeight } = container
+        const stillNearBottom = currentScrollHeight - currentScrollTop - currentClientHeight < 150
+        
+        if (stillNearBottom) {
+          setIsUserScrolling(false)
+        }
+      }, 3000) // Increased from 1 second to 3 seconds
+      
+      setScrollTimeout(timeout)
+    }
   }, [scrollTimeout])
 
-  // Auto-scroll when new messages arrive (only if user isn't manually scrolling)
+  // Only auto-scroll when NEW messages arrive (not on every render)
   React.useEffect(() => {
-    if (!isUserScrolling) {
+    const currentMessageCount = chatSession.messages.length
+    const hasNewMessage = currentMessageCount > lastMessageCountRef.current
+    
+    // Update the ref for next comparison
+    lastMessageCountRef.current = currentMessageCount
+    
+    // Only scroll if there's a new message and user isn't manually scrolling
+    if (hasNewMessage && !isUserScrolling) {
+      // Small delay to ensure message is rendered
+      setTimeout(() => scrollToBottom(), 50)
+    }
+  }, [chatSession.messages.length, scrollToBottom, isUserScrolling])
+
+  // Handle streaming message updates separately
+  React.useEffect(() => {
+    // Auto-scroll during streaming if user isn't scrolling
+    if (chatSession.streamingMessage && !isUserScrolling) {
       scrollToBottom()
     }
-  }, [chatSession.messages.length, chatSession.streamingMessage, scrollToBottom, isUserScrolling])
-
-  // Cleanup timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout)
-      }
-    }
-  }, [scrollTimeout])
+  }, [chatSession.streamingMessage, scrollToBottom, isUserScrolling])
 
   // Get personalities and roles with fallbacks
   const [personalities, setPersonalities] = React.useState([])
@@ -121,7 +157,9 @@ export default function ChatPage() {
     try {
       await chatSession.sendMessage(message.trim())
       chat.setMessageInput("")
-      // Force scroll to bottom after sending a message
+      
+      // Force scroll to bottom when user sends a message (override user scrolling)
+      setIsUserScrolling(false) // Reset user scrolling state
       setTimeout(() => scrollToBottom(true), 100)
     } catch (error) {
       toast({
@@ -311,17 +349,20 @@ export default function ChatPage() {
 
               {/* Scroll to bottom button - show when user is scrolling up */}
               {isUserScrolling && (
-                <div className="absolute bottom-20 right-8 z-10">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full shadow-lg bg-background hover:bg-muted"
-                    onClick={() => scrollToBottom(true)}
-                  >
-                    Scroll to bottom
-                  </Button>
-                </div>
-              )}
+    <div className="absolute bottom-20 right-8 z-10">
+      <Button
+        size="sm"
+        variant="outline"
+        className="rounded-full shadow-lg bg-background hover:bg-muted"
+        onClick={() => {
+          setIsUserScrolling(false)
+          scrollToBottom(true)
+        }}
+      >
+        Scroll to bottom
+      </Button>
+    </div>
+  )}
 
               {/* Message Input - Fixed at bottom */}
               <div className="shrink-0 border-t border-border bg-background">
